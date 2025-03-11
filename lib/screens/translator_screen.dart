@@ -5,7 +5,7 @@ import '../providers/translation_providers.dart';
 import '../widgets/translation_card.dart';
 
 class TranslatorScreen extends ConsumerWidget {
-  const TranslatorScreen({Key? key}) : super(key: key);
+  const TranslatorScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +31,7 @@ class TranslatorScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('言外之意 Translator'),
+        title: const Text('忠告'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
