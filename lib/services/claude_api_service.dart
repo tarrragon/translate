@@ -290,7 +290,12 @@ class ClaudeApiService {
           parsedJson.forEach((key, value) {
             if (value is String) {
               // 嘗試修復亂碼
-              final fixedValue = _fixChineseEncoding(value);
+              String fixedValue = _fixChineseEncoding(value);
+
+              // 處理換行符號，確保它們在 UI 中正確顯示
+              // 將 \n 轉換為實際的換行符號
+              fixedValue = _processNewlines(fixedValue);
+
               fixedJson[key] = fixedValue;
               print('修復後的 $key: $fixedValue');
             } else {
@@ -496,5 +501,34 @@ class ClaudeApiService {
       }
     }
     return false;
+  }
+
+  // 處理換行符號
+  String _processNewlines(String input) {
+    // 如果輸入為空，直接返回
+    if (input.isEmpty) return input;
+
+    // 處理 Unicode 轉義序列中的換行符號 (\u000a 或 \n)
+    String processed = input;
+
+    // 處理 Unicode 轉義序列中的換行符號 (\u000a)
+    processed = processed.replaceAll('\\u000a', '\n');
+
+    // 處理文本中的 \n 字符序列（兩個字符：反斜線和 n）
+    processed = processed.replaceAll('\\n', '\n');
+
+    // 處理文本中的 \r\n 字符序列
+    processed = processed.replaceAll('\\r\\n', '\n');
+
+    // 處理文本中的 \r 字符序列
+    processed = processed.replaceAll('\\r', '\n');
+
+    // 處理文本中的 \t 字符序列（製表符）
+    processed = processed.replaceAll('\\t', '\t');
+
+    print('處理換行符號前: ${input.substring(0, min(50, input.length))}...');
+    print('處理換行符號後: ${processed.substring(0, min(50, processed.length))}...');
+
+    return processed;
   }
 }
