@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 assets/config/api_config.json
+pubspec.lock
 
 # IntelliJ related
 *.iml
