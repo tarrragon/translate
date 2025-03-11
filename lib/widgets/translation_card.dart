@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_strings.dart';
 
 class TranslationCard extends StatelessWidget {
   final String inputText;
@@ -26,7 +27,7 @@ class TranslationCard extends StatelessWidget {
             // Header
             const Center(
               child: Text(
-                '翻譯',
+                AppStrings.cardTitle,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -52,7 +53,7 @@ class TranslationCard extends StatelessWidget {
 
             // Analysis section
             const Text(
-              '深層分析',
+              AppStrings.analysisTitle,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -72,7 +73,7 @@ class TranslationCard extends StatelessWidget {
 
             // Advice section
             const Text(
-              '建議回應',
+              AppStrings.adviceTitle,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

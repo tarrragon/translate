@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/config_providers.dart';
 import '../providers/translation_providers.dart';
 import '../widgets/translation_card.dart';
+import '../constants/app_strings.dart';
 
 class TranslatorScreen extends ConsumerWidget {
   const TranslatorScreen({super.key});
@@ -31,7 +32,7 @@ class TranslatorScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('忠告'),
+        title: const Text(AppStrings.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -47,7 +48,7 @@ class TranslatorScreen extends ConsumerWidget {
             TextField(
               controller: inputController,
               decoration: const InputDecoration(
-                labelText: '輸入文字',
+                labelText: AppStrings.inputLabel,
                 border: OutlineInputBorder(),
               ),
               maxLines: 5,
@@ -63,7 +64,11 @@ class TranslatorScreen extends ConsumerWidget {
                           ref
                               .read(translationResultProvider.notifier)
                               .translate(),
-              child: Text(!hasApiKey ? '設定 API Key' : '生成翻譯'),
+              child: Text(
+                !hasApiKey
+                    ? AppStrings.setApiKeyButton
+                    : AppStrings.generateButton,
+              ),
             ),
             const SizedBox(height: 24),
             Expanded(
@@ -72,21 +77,25 @@ class TranslatorScreen extends ConsumerWidget {
                 error:
                     (error, stack) => Center(
                       child: Text(
-                        '錯誤: $error',
+                        '${AppStrings.errorPrefix}$error',
                         style: const TextStyle(color: Colors.red),
                       ),
                     ),
                 data: (result) {
                   if (result.isEmpty) {
                     return Center(
-                      child: Text(hasApiKey ? '輸入文字並點擊生成翻譯' : '請先設定 API Key'),
+                      child: Text(
+                        hasApiKey
+                            ? AppStrings.pleaseInputText
+                            : AppStrings.pleaseSetApiKey,
+                      ),
                     );
                   }
 
                   if (result.hasError) {
                     return Center(
                       child: Text(
-                        '錯誤: ${result.error}',
+                        '${AppStrings.errorPrefix}${result.error}',
                         style: const TextStyle(color: Colors.red),
                       ),
                     );
@@ -120,25 +129,25 @@ class TranslatorScreen extends ConsumerWidget {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('設定 Claude API Key'),
+            title: const Text(AppStrings.apiKeyDialogTitle),
             content: TextField(
               controller: controller,
               decoration: const InputDecoration(
-                labelText: 'API Key',
+                labelText: AppStrings.apiKeyLabel,
                 border: OutlineInputBorder(),
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('取消'),
+                child: const Text(AppStrings.cancelButton),
               ),
               ElevatedButton(
                 onPressed: () {
                   ref.read(apiKeyProvider.notifier).setApiKey(controller.text);
                   Navigator.pop(context);
                 },
-                child: const Text('儲存'),
+                child: const Text(AppStrings.saveButton),
               ),
             ],
           ),
