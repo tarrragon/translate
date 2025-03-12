@@ -38,17 +38,17 @@ class TranslationCard extends StatelessWidget {
             const Divider(thickness: 1, color: Colors.grey, height: 32),
 
             // Input section
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                inputText,
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
-              ),
-            ),
+            // Container(
+            //   padding: const EdgeInsets.all(12),
+            //   decoration: BoxDecoration(
+            //     color: Colors.grey.shade100,
+            //     borderRadius: BorderRadius.circular(8),
+            //   ),
+            //   child: Text(
+            //     inputText,
+            //     style: const TextStyle(fontSize: 14, color: Colors.black87),
+            //   ),
+            // ),
             const SizedBox(height: 24),
 
             // Analysis section
