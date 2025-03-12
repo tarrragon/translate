@@ -1,6 +1,6 @@
 class AppStrings {
   // App-wide
-  static const appTitle = '忠告';
+  static const appTitle = '笨蛋呢，看著前方卻想著後方';
 
   // Translator Screen
   static const inputLabel = '輸入文字';
