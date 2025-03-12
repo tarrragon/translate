@@ -83,7 +83,8 @@ final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
     if (apiKeyState.hasValue &&
         apiKeyState.value != null &&
         apiKeyState.value!.isNotEmpty) {
-      return config.copyWith(apiKey: apiKeyState.value);
+      final result = config.copyWith(apiKey: apiKeyState.value);
+      return result;
     }
 
     return config;
@@ -183,7 +184,37 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
     try {
       // 先嘗試從 SharedPreferences 讀取金鑰
       final prefs = await SharedPreferences.getInstance();
+
+      // 檢查 SharedPreferences 中的所有鍵
+      final allKeys = prefs.getKeys();
+
+      // 檢查每個鍵的值
+      for (var key in allKeys) {
+        var value = prefs.get(key);
+        if (value is String) {
+          if (value.startsWith('sk-')) {
+            // 嘗試獲取該鍵的設置時間（如果有）
+            try {
+              final lastModifiedKey = "${key}_last_modified";
+              if (prefs.containsKey(lastModifiedKey)) {
+                final lastModified = prefs.getInt(lastModifiedKey);
+                if (lastModified != null) {}
+              } else {}
+            } catch (e) {
+              throw Exception('${AppStrings.errorApiKeyLoading}$e');
+            }
+          }
+        } else {}
+      }
+
       String? apiKey = prefs.getString('claude_api_key');
+
+      // 顯示金鑰的前10個字符（如果存在）
+      if (apiKey != null && apiKey.isNotEmpty) {
+        // 檢查金鑰是否以 sk-ant- 開頭
+        if (apiKey.startsWith('sk-ant-')) {
+        } else {}
+      }
 
       // 如果 SharedPreferences 中沒有金鑰，嘗試從配置文件讀取
       if (apiKey == null || apiKey.isEmpty) {
@@ -195,20 +226,21 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
 
           // 解析 JSON
           final jsonMap = json.decode(jsonString);
+
           if (jsonMap != null && jsonMap is Map<String, dynamic>) {
             // 檢查配置文件中是否有 api_key 欄位
             final configApiKey = jsonMap['api_key'] as String?;
+
             if (configApiKey != null && configApiKey.isNotEmpty) {
               // 如果配置文件中有有效的金鑰，使用它並保存到 SharedPreferences
               apiKey = configApiKey;
               await prefs.setString('claude_api_key', apiKey);
-            }
-          }
+            } else {}
+          } else {}
         } catch (e) {
           // 忽略配置文件讀取錯誤，繼續使用 SharedPreferences 中的金鑰（如果有的話）
-          print('無法從配置文件讀取 API 金鑰: $e');
         }
-      }
+      } else {}
 
       state = AsyncValue.data(apiKey);
     } catch (e) {
@@ -232,6 +264,11 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('claude_api_key', apiKey);
+
+      // 記錄設置時間
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setInt('claude_api_key_last_modified', now);
+
       state = AsyncValue.data(apiKey);
 
       // refresh API config provider to reflect new key
@@ -252,6 +289,7 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('claude_api_key');
+
       state = const AsyncValue.data(null);
 
       // refresh API config provider
@@ -259,6 +297,34 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
     } catch (e) {
       state = AsyncValue.error(
         AppStrings.errorApiKeyClearing + e.toString(),
+        StackTrace.current,
+      );
+    }
+  }
+
+  /// 清除所有 SharedPreferences 數據
+  ///
+  /// 此方法用於測試目的，可以清除所有存儲的數據，
+  /// 包括 API 金鑰，以便測試應用程序在沒有預設金鑰的情況下的行為。
+  Future<void> clearAllPreferences() async {
+    state = const AsyncValue.loading();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // 獲取所有鍵
+      prefs.getKeys();
+
+      // 清除所有數據
+      await prefs.clear();
+
+      state = const AsyncValue.data(null);
+
+      // 重新整理相關提供者
+      ref.invalidate(apiConfigProvider);
+      ref.read(translationResultProvider.notifier).reset();
+    } catch (e) {
+      state = AsyncValue.error(
+        '清除 SharedPreferences 數據失敗: $e',
         StackTrace.current,
       );
     }

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_strings.dart';
@@ -119,13 +118,6 @@ class ClaudeApiService {
 
     try {
       // 記錄請求開始（不記錄敏感資訊）
-      print('開始 API 請求: ${apiConfig.baseUrl}');
-      print(
-        '請求標頭: ${headers.map((k, v) => MapEntry(k, k == 'x-api-key' ? '[已隱藏]' : v))}',
-      );
-      print(
-        '請求內容: ${requestBody.toString().substring(0, min(100, requestBody.toString().length))}...',
-      );
 
       // 發送請求
       final response = await http.post(
@@ -135,30 +127,18 @@ class ClaudeApiService {
       );
 
       // 記錄回應狀態
-      print('API 回應狀態碼: ${response.statusCode}');
-      print('API 回應標頭: ${response.headers}');
 
       // 檢查回應的內容類型
-      final contentType = response.headers['content-type'] ?? '';
-      print('回應內容類型: $contentType');
 
       // 檢查回應的編碼
-      final contentEncoding = response.headers['content-encoding'] ?? '';
-      print('回應內容編碼: $contentEncoding');
 
       // 如果回應內容不太長，記錄完整內容；否則只記錄前 200 個字元
-      final responsePreview =
-          response.body.length > 200
-              ? '${response.body.substring(0, 200)}...'
-              : response.body;
-      print('API 回應內容預覽: $responsePreview');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['content'][0]['text'];
 
         // 輸出原始內容以便調試
-        print('原始回應內容: $content');
 
         try {
           // 嘗試解析 JSON 回應
@@ -167,10 +147,7 @@ class ClaudeApiService {
           // 首先嘗試直接解析
           try {
             parsedJson = jsonDecode(content);
-            print('直接解析 content 成功: $parsedJson');
           } catch (e) {
-            print('直接解析 content 失敗: $e');
-
             // 嘗試使用正則表達式提取 JSON
             final jsonRegex = RegExp(
               r'```json\s*\n([\s\S]*?)\n```|({[\s\S]*})',
@@ -180,14 +157,10 @@ class ClaudeApiService {
             if (match != null) {
               final jsonStr =
                   (match.group(1)?.trim() ?? match.group(2) ?? '{}').trim();
-              print('提取的 JSON 字符串: $jsonStr');
 
               try {
                 parsedJson = jsonDecode(jsonStr);
-                print('使用正則表達式解析 JSON 成功');
               } catch (e2) {
-                print('使用正則表達式解析 JSON 失敗: $e2');
-
                 // 清理並修復 JSON
                 String cleanedContent = content.replaceAll(
                   RegExp(r'^\uFEFF'),
@@ -199,34 +172,25 @@ class ClaudeApiService {
 
                 // 如果 JSON 不完整，嘗試修復
                 if (!isJsonComplete) {
-                  print('檢測到不完整的 JSON，嘗試修復...');
-
                   // 檢查是否有 "advice" 欄位但沒有結束引號
                   if (cleanedContent.contains('"advice"') &&
                       !cleanedContent.contains('"advice": "')) {
                     // 沒有 advice 欄位值，可能是格式錯誤
-                    cleanedContent = cleanedContent.trim() + '}';
+                    cleanedContent = '${cleanedContent.trim()}}';
                   } else if (cleanedContent.contains('"advice": "') &&
                       !cleanedContent.contains('"}')) {
                     // 有 advice 欄位開始但沒有結束，添加結束引號和大括號
-                    cleanedContent = cleanedContent.trim() + '"}';
+                    cleanedContent = '${cleanedContent.trim()}"}';
                   } else {
                     // 其他情況，嘗試添加缺失的大括號
-                    cleanedContent = cleanedContent.trim() + '}';
+                    cleanedContent = '${cleanedContent.trim()}}';
                   }
-
-                  print(
-                    '修復後的 JSON: ${cleanedContent.substring(0, min(100, cleanedContent.length))}...',
-                  );
                 }
 
                 // 嘗試解析修復後的 JSON
                 try {
                   parsedJson = jsonDecode(cleanedContent);
-                  print('修復後的 JSON 解析成功');
                 } catch (e3) {
-                  print('修復後的 JSON 仍然無法解析: $e3');
-
                   // 更激進的修復方法：提取已知的欄位並重建 JSON
                   // 使用更寬鬆的正則表達式，可以匹配多行字符串
                   final analysisRegex = RegExp(
@@ -264,13 +228,10 @@ class ClaudeApiService {
 
                   // 手動創建 JSON
                   parsedJson = {'analysis': analysis, 'advice': advice};
-
-                  print('使用手動提取的欄位創建 JSON: $parsedJson');
                 }
               }
             } else {
               // 如果無法使用正則表達式提取 JSON，嘗試直接從內容中提取欄位
-              print('無法使用正則表達式提取 JSON，嘗試直接從內容中提取欄位');
 
               // 使用更寬鬆的正則表達式，可以匹配多行字符串
               final analysisRegex = RegExp(
@@ -293,8 +254,6 @@ class ClaudeApiService {
 
               // 手動創建 JSON
               parsedJson = {'analysis': analysis, 'advice': advice};
-
-              print('使用手動提取的欄位創建 JSON: $parsedJson');
             }
           }
 
@@ -310,7 +269,6 @@ class ClaudeApiService {
               fixedValue = _processNewlines(fixedValue);
 
               fixedJson[key] = fixedValue;
-              print('修復後的 $key: $fixedValue');
             } else {
               fixedJson[key] = value;
             }
@@ -318,40 +276,33 @@ class ClaudeApiService {
 
           return TranslationResult.fromJson(fixedJson);
         } catch (e) {
-          print('JSON 處理過程中發生錯誤: $e');
           return TranslationResult.withError(
             '${AppStrings.errorResponseParsing}: 處理 JSON 時發生錯誤 - $e',
           );
         }
       } else if (response.statusCode == 401) {
-        print('認證錯誤: API 金鑰無效或過期');
         return TranslationResult.withError(
           AppStrings.errorApiKeyMissing + AppStrings.errorApiKeyInvalid,
         );
       } else if (response.statusCode == 400) {
-        print('請求錯誤: 請求格式或內容有問題');
         return TranslationResult.withError(
           '${AppStrings.errorApiRequest}${response.statusCode}: 請求格式或內容有問題\n${response.body}',
         );
       } else if (response.statusCode == 429) {
-        print('請求頻率限制: 已達到 API 請求限制');
         return TranslationResult.withError(
           '${AppStrings.errorApiRequest}${response.statusCode}: 已達到 API 請求限制\n${response.body}',
         );
       } else if (response.statusCode >= 500) {
-        print('伺服器錯誤: Anthropic API 伺服器問題');
         return TranslationResult.withError(
           '${AppStrings.errorApiRequest}${response.statusCode}: Anthropic API 伺服器問題\n${response.body}',
         );
       } else {
-        print('未預期的回應狀態碼: ${response.statusCode}');
         return TranslationResult.withError(
           '${AppStrings.errorApiRequest}${response.statusCode}\n${response.body}',
         );
       }
     } on http.ClientException catch (e) {
       // 網路連線錯誤
-      print('網路連線錯誤: $e');
 
       // 檢查具體的錯誤類型
       final errorMessage = e.toString();
@@ -378,19 +329,16 @@ class ClaudeApiService {
       }
     } on FormatException catch (e) {
       // JSON 解析錯誤
-      print('JSON 格式錯誤: $e');
       return TranslationResult.withError(
         '${AppStrings.errorResponseParsing}: $e',
       );
     } on SocketException catch (e) {
       // Socket 錯誤
-      print('Socket 錯誤: $e');
       return TranslationResult.withError(
         '${AppStrings.errorNetworkConnection}: Socket 錯誤 - $e',
       );
     } catch (e) {
       // 其他未預期的錯誤
-      print('未預期的錯誤: $e');
       return TranslationResult.withError('${AppStrings.errorGeneric}$e');
     }
   }
@@ -398,8 +346,6 @@ class ClaudeApiService {
   String _fixChineseEncoding(String input) {
     // 如果輸入為空，直接返回
     if (input.isEmpty) return input;
-
-    print('嘗試修復編碼: ${input.substring(0, min(50, input.length))}...');
 
     // 方法 1: 嘗試使用 UTF-8 重新編碼
     try {
@@ -425,16 +371,15 @@ class ClaudeApiService {
 
       // 嘗試使用 UTF-8 解碼
       String result = utf8.decode(bytes, allowMalformed: true);
-      print('UTF-8 重新編碼結果: ${result.substring(0, min(50, result.length))}...');
 
       // 如果結果看起來合理（包含中文字符），則返回
       if (_containsChineseCharacters(result)) {
         return result;
       }
     } catch (e) {
-      print('UTF-8 重新編碼失敗: $e');
+      throw Exception('回應內容無法辨識: $e');
     }
-
+    /*
     // 方法 2: 嘗試使用 Latin-1 編碼後再用 UTF-8 解碼
     try {
       List<int> latin1Bytes = [];
@@ -446,15 +391,12 @@ class ClaudeApiService {
       }
 
       String result = utf8.decode(latin1Bytes, allowMalformed: true);
-      print(
-        'Latin-1 -> UTF-8 結果: ${result.substring(0, min(50, result.length))}...',
-      );
 
       if (_containsChineseCharacters(result)) {
         return result;
       }
     } catch (e) {
-      print('Latin-1 -> UTF-8 轉換失敗: $e');
+      print('Latin-1 編碼後再用 UTF-8 解碼失敗: $e');
     }
 
     // 方法 3: 嘗試使用 Big5 編碼（常用於繁體中文）
@@ -491,15 +433,14 @@ class ClaudeApiService {
       }
 
       String resultStr = result.toString();
-      print('啟發式方法結果: ${resultStr.substring(0, min(50, resultStr.length))}...');
 
       if (_containsChineseCharacters(resultStr)) {
         return resultStr;
       }
     } catch (e) {
-      print('啟發式方法失敗: $e');
+      print('Big5 編碼後再用 UTF-8 解碼失敗: $e');
     }
-
+*/
     // 如果所有方法都失敗，返回原始輸入
     return input;
   }
@@ -538,9 +479,6 @@ class ClaudeApiService {
 
     // 處理文本中的 \t 字符序列（製表符）
     processed = processed.replaceAll('\\t', '\t');
-
-    print('處理換行符號前: ${input.substring(0, min(50, input.length))}...');
-    print('處理換行符號後: ${processed.substring(0, min(50, processed.length))}...');
 
     return processed;
   }

@@ -20,7 +20,6 @@ class TranslationResult {
       try {
         return _decodeUnicodeEscapes(value.toString());
       } catch (e) {
-        print('轉換 $key 為字符串時出錯: $e');
         return null;
       }
     }
