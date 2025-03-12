@@ -17,9 +17,11 @@ class AppStrings {
   static const saveButton = '儲存';
 
   // Translation Card
-  static const cardTitle = '忠告';
+  static const cardTitle = '笨蛋呢，看著前方卻想著後方';
   static const analysisTitle = '深層分析';
   static const adviceTitle = '建議回應';
+  static const copyButton = '複製';
+  static const pasteButton = '貼上';
 
   // 錯誤訊息
   static const errorApiNotInitialized = 'API 服務尚未初始化，請先設定您的 API 金鑰';
