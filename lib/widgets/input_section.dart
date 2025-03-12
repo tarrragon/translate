@@ -40,6 +40,12 @@ class _InputSectionState extends ConsumerState<InputSection> {
     }
   }
 
+  // 清除輸入框中的所有文字
+  void _clearText() {
+    inputController.clear();
+    ref.read(inputTextProvider.notifier).state = '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final inputText = ref.watch(inputTextProvider);
@@ -79,12 +85,24 @@ class _InputSectionState extends ConsumerState<InputSection> {
                 },
               ),
             ),
-            // 貼上按鈕
+            // 右側按鈕區域
             const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.content_paste),
-              tooltip: AppStrings.pasteButton,
-              onPressed: _pasteFromClipboard,
+            Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // 貼上按鈕
+                IconButton(
+                  icon: const Icon(Icons.content_paste),
+                  tooltip: AppStrings.pasteButton,
+                  onPressed: _pasteFromClipboard,
+                ),
+                // 清除按鈕
+                IconButton(
+                  icon: const Icon(Icons.clear),
+                  tooltip: '清除文字',
+                  onPressed: _clearText,
+                ),
+              ],
             ),
           ],
         ),
