@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_strings.dart';
 
 class TranslationCard extends StatelessWidget {
@@ -12,6 +13,18 @@ class TranslationCard extends StatelessWidget {
     required this.analysis,
     required this.advice,
   });
+
+  // 複製文字到剪貼簿
+  void _copyToClipboard(BuildContext context, String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    // 顯示提示訊息
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(AppStrings.copiedToClipboard),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,13 +65,24 @@ class TranslationCard extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Analysis section
-            const Text(
-              AppStrings.analysisTitle,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+            Row(
+              children: [
+                const Text(
+                  AppStrings.analysisTitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                // 分析區域的複製按鈕
+                IconButton(
+                  icon: const Icon(Icons.content_copy, size: 20),
+                  tooltip: AppStrings.copyButton,
+                  onPressed: () => _copyToClipboard(context, analysis),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
@@ -72,13 +96,24 @@ class TranslationCard extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Advice section
-            const Text(
-              AppStrings.adviceTitle,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+            Row(
+              children: [
+                const Text(
+                  AppStrings.adviceTitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                // 建議區域的複製按鈕
+                IconButton(
+                  icon: const Icon(Icons.content_copy, size: 20),
+                  tooltip: AppStrings.copyButton,
+                  onPressed: () => _copyToClipboard(context, advice),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
@@ -90,7 +125,7 @@ class TranslationCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Divider(thickness: 1, color: Colors.grey),
+            // const Divider(thickness: 1, color: Colors.grey),
           ],
         ),
       ),
