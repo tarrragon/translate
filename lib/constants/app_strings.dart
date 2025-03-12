@@ -15,6 +15,8 @@ class AppStrings {
   static const apiKeyLabel = 'API Key';
   static const cancelButton = '取消';
   static const saveButton = '儲存';
+  static const apiKeyHint = '請輸入您的 Claude API 金鑰，格式應為 sk-ant-... 開頭';
+  static const clearButton = '清除';
 
   // Translation Card
   static const cardTitle = '笨蛋呢，看著前方卻想著後方';
