@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math' as math;
 import '../constants/app_strings.dart';
 import '../providers/config_providers.dart';
 
@@ -68,6 +70,7 @@ class _ApiKeyDialogState extends ConsumerState<ApiKeyDialog> {
                   controller: controller,
                   decoration: InputDecoration(
                     labelText: AppStrings.apiKeyLabel,
+                    hintText: AppStrings.apiKeyHint,
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -98,6 +101,76 @@ class _ApiKeyDialogState extends ConsumerState<ApiKeyDialog> {
           Text(
             AppStrings.apiKeyHint,
             style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          // 顯示 API 金鑰來源信息的按鈕
+          ElevatedButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final apiKey = prefs.getString('claude_api_key');
+              final lastModified = prefs.getInt('claude_api_key_last_modified');
+
+              String message = '金鑰信息：\n';
+              if (apiKey != null && apiKey.isNotEmpty) {
+                message += '- 金鑰長度: ${apiKey.length}\n';
+                message +=
+                    '- 金鑰前綴: ${apiKey.substring(0, math.min(10, apiKey.length))}...\n';
+                message +=
+                    '- 格式: ${apiKey.startsWith('sk-ant-') ? "正確 (sk-ant-)" : "不正確"}\n';
+              } else {
+                message += '- 未設置金鑰\n';
+              }
+
+              if (lastModified != null) {
+                final dateTime = DateTime.fromMillisecondsSinceEpoch(
+                  lastModified,
+                );
+                message += '- 設置時間: $dateTime\n';
+              } else {
+                message += '- 未記錄設置時間\n';
+              }
+
+              message += '\nSharedPreferences 中的所有鍵：\n';
+              message += prefs.getKeys().join(', ');
+
+              showDialog(
+                context: context,
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text('API 金鑰來源信息'),
+                      content: SingleChildScrollView(child: Text(message)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('關閉'),
+                        ),
+                      ],
+                    ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('查看 API 金鑰來源信息'),
+          ),
+          const SizedBox(height: 8),
+          // 清除所有 SharedPreferences 數據的按鈕（僅用於測試）
+          ElevatedButton(
+            onPressed: () {
+              ref.read(apiKeyProvider.notifier).clearAllPreferences();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('已清除所有 SharedPreferences 數據，請重新啟動應用程序'),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('清除所有存儲數據（測試用）'),
           ),
         ],
       ),
