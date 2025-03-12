@@ -22,6 +22,7 @@ class AppStrings {
   static const adviceTitle = '建議回應';
   static const copyButton = '複製';
   static const pasteButton = '貼上';
+  static const copiedToClipboard = '已複製到剪貼簿';
 
   // 錯誤訊息
   static const errorApiNotInitialized = 'API 服務尚未初始化，請先設定您的 API 金鑰';
