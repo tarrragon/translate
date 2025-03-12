@@ -179,6 +179,9 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
 
       // refresh API config provider to reflect new key
       ref.invalidate(apiConfigProvider);
+
+      // 重置翻譯結果狀態，清除錯誤訊息
+      ref.read(translationResultProvider.notifier).reset();
     } catch (e) {
       state = AsyncValue.error(
         AppStrings.errorApiKeySaving + e.toString(),
