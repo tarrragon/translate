@@ -103,14 +103,14 @@ class _ApiKeyDialogState extends ConsumerState<ApiKeyDialog> {
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 16),
-          // 顯示 API 金鑰來源信息的按鈕
+          // 顯示 API 金鑰來源資訊的按鈕
           ElevatedButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               final apiKey = prefs.getString('claude_api_key');
               final lastModified = prefs.getInt('claude_api_key_last_modified');
 
-              String message = '金鑰信息：\n';
+              String message = '金鑰資訊：\n';
               if (apiKey != null && apiKey.isNotEmpty) {
                 message += '- 金鑰長度: ${apiKey.length}\n';
                 message +=
@@ -130,14 +130,14 @@ class _ApiKeyDialogState extends ConsumerState<ApiKeyDialog> {
                 message += '- 未記錄設置時間\n';
               }
 
-              message += '\nSharedPreferences 中的所有鍵：\n';
+              message += '\n 儲存的所有金鑰：\n';
               message += prefs.getKeys().join(', ');
 
               showDialog(
                 context: context,
                 builder:
                     (context) => AlertDialog(
-                      title: const Text('API 金鑰來源信息'),
+                      title: const Text('API 金鑰來源資訊'),
                       content: SingleChildScrollView(child: Text(message)),
                       actions: [
                         TextButton(
@@ -152,7 +152,7 @@ class _ApiKeyDialogState extends ConsumerState<ApiKeyDialog> {
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
             ),
-            child: const Text('查看 API 金鑰來源信息'),
+            child: const Text('查看 API 金鑰資訊'),
           ),
           const SizedBox(height: 8),
           // 清除所有 SharedPreferences 數據的按鈕（僅用於測試）
@@ -161,16 +161,14 @@ class _ApiKeyDialogState extends ConsumerState<ApiKeyDialog> {
               ref.read(apiKeyProvider.notifier).clearAllPreferences();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('已清除所有 SharedPreferences 數據，請重新啟動應用程序'),
-                ),
+                const SnackBar(content: Text('已清除所有 金鑰，請重新啟動APP')),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('清除所有存儲數據（測試用）'),
+            child: const Text('清除所有金鑰'),
           ),
         ],
       ),

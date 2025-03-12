@@ -2,11 +2,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import '../constants/app_strings.dart';
 import '../models/api_config.dart';
 import '../models/prompt_config.dart';
@@ -34,101 +32,67 @@ import '../providers/translation_providers.dart';
 /// - 在初始化流程中檢查應用程式設定的完整性
 final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
   try {
-    print('===== 開始載入 API 配置 =====');
-
     // 等待 API 金鑰載入完成
     final apiKeyStatus = ref.read(apiKeyStatusProvider);
-    print('當前 API 金鑰狀態: $apiKeyStatus');
 
     // 如果 API 金鑰仍在載入中，等待它完成
     if (apiKeyStatus == ApiKeyStatus.loading) {
-      print('API 金鑰仍在載入中，等待它完成');
       // 創建一個 Completer 來等待 API 金鑰載入完成
       final completer = Completer<void>();
 
       // 創建一個定時器，每 100ms 檢查一次 API 金鑰狀態
       Timer.periodic(const Duration(milliseconds: 100), (timer) {
         final currentStatus = ref.read(apiKeyStatusProvider);
-        print('檢查 API 金鑰狀態: $currentStatus');
         if (currentStatus != ApiKeyStatus.loading) {
-          print('API 金鑰載入完成，狀態: $currentStatus');
           timer.cancel();
           completer.complete();
         }
       });
 
       // 等待 API 金鑰載入完成，但最多等待 5 秒
-      print('等待 API 金鑰載入完成，最多 5 秒');
       await completer.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () {
           // 如果超時，也視為完成
-          print('等待 API 金鑰載入超時');
           return;
         },
       );
     }
 
     // read config file
-    print('嘗試讀取配置文件: assets/config/api_config.json');
     final jsonString = await rootBundle.loadString(
       'assets/config/api_config.json',
     );
-    print('配置文件內容長度: ${jsonString.length}');
 
     // parse JSON
     final jsonMap = json.decode(jsonString);
-    print('JSON 解析結果: ${jsonMap != null ? "成功" : "失敗"}');
     if (jsonMap == null) {
-      print('配置文件為空');
       throw Exception(AppStrings.errorConfigEmpty);
     }
 
     // create ApiConfig object
-    print('創建 ApiConfig 對象');
     final config = ApiConfig.fromJson(jsonMap);
-    print(
-      'ApiConfig 創建成功: baseUrl=${config.baseUrl}, model=${config.model}, maxTokens=${config.maxTokens}, apiKey=${config.apiKey != null ? (config.apiKey!.isEmpty ? "空字串" : "長度為 ${config.apiKey!.length} 的金鑰") : "null"}',
-    );
 
     // check required fields
     if (config.baseUrl.isEmpty || config.model.isEmpty) {
-      print('配置文件缺少必要欄位');
       throw Exception(AppStrings.errorConfigIncomplete);
     }
 
     // check API key
-    print('檢查 API 金鑰');
     final apiKeyState = ref.read(apiKeyProvider);
-    print(
-      'API 金鑰狀態: ${apiKeyState.hasValue ? "有值" : "無值"}${apiKeyState.isLoading ? " (載入中)" : ""}',
-    );
     if (apiKeyState.hasValue &&
         apiKeyState.value != null &&
         apiKeyState.value!.isNotEmpty) {
-      print('使用 apiKeyProvider 中的金鑰替換配置中的金鑰');
       final result = config.copyWith(apiKey: apiKeyState.value);
-      print(
-        '最終配置: baseUrl=${result.baseUrl}, model=${result.model}, maxTokens=${result.maxTokens}, apiKey=${result.apiKey != null ? (result.apiKey!.isEmpty ? "空字串" : "長度為 ${result.apiKey!.length} 的金鑰") : "null"}',
-      );
-      print('===== API 配置載入完成 =====');
       return result;
     }
 
-    print('使用配置文件中的金鑰');
-    print(
-      '最終配置: baseUrl=${config.baseUrl}, model=${config.model}, maxTokens=${config.maxTokens}, apiKey=${config.apiKey != null ? (config.apiKey!.isEmpty ? "空字串" : "長度為 ${config.apiKey!.length} 的金鑰") : "null"}',
-    );
-    print('===== API 配置載入完成 =====');
     return config;
   } on FormatException catch (e) {
-    print('===== API 配置載入失敗: 格式錯誤 $e =====');
     throw Exception('${AppStrings.errorConfigFormat}$e');
   } on FileSystemException catch (e) {
-    print('===== API 配置載入失敗: 文件系統錯誤 $e =====');
     throw Exception('${AppStrings.errorConfigFile}$e');
   } catch (e) {
-    print('===== API 配置載入失敗: $e =====');
     throw Exception('${AppStrings.errorConfigLoading}$e');
   }
 });
@@ -218,128 +182,68 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
 
   Future<void> _loadApiKey() async {
     try {
-      print('===== 開始載入 API 金鑰 =====');
-
       // 先嘗試從 SharedPreferences 讀取金鑰
       final prefs = await SharedPreferences.getInstance();
 
       // 檢查 SharedPreferences 中的所有鍵
       final allKeys = prefs.getKeys();
-      print('SharedPreferences 中的所有鍵: $allKeys');
 
       // 檢查每個鍵的值
       for (var key in allKeys) {
         var value = prefs.get(key);
         if (value is String) {
-          print('SharedPreferences 鍵 "$key" 的值類型: String, 長度: ${value.length}');
           if (value.startsWith('sk-')) {
-            print(
-              '鍵 "$key" 的值可能是 API 金鑰，前綴: ${value.substring(0, math.min(10, value.length))}...',
-            );
-
             // 嘗試獲取該鍵的設置時間（如果有）
             try {
               final lastModifiedKey = "${key}_last_modified";
               if (prefs.containsKey(lastModifiedKey)) {
                 final lastModified = prefs.getInt(lastModifiedKey);
-                if (lastModified != null) {
-                  final dateTime = DateTime.fromMillisecondsSinceEpoch(
-                    lastModified,
-                  );
-                  print('鍵 "$key" 的最後修改時間: $dateTime');
-                }
-              } else {
-                print('鍵 "$key" 沒有記錄最後修改時間');
-              }
+                if (lastModified != null) {}
+              } else {}
             } catch (e) {
-              print('獲取鍵 "$key" 的最後修改時間時出錯: $e');
+              throw Exception('${AppStrings.errorApiKeyLoading}$e');
             }
           }
-        } else {
-          print('SharedPreferences 鍵 "$key" 的值類型: ${value.runtimeType}');
-        }
-      }
-
-      // 檢查應用程序的安裝時間
-      try {
-        final packageInfo = await PackageInfo.fromPlatform();
-        print('應用程序包名: ${packageInfo.packageName}');
-        print('應用程序版本: ${packageInfo.version}');
-        print('應用程序構建號: ${packageInfo.buildNumber}');
-      } catch (e) {
-        print('獲取應用程序信息時出錯: $e');
+        } else {}
       }
 
       String? apiKey = prefs.getString('claude_api_key');
-      print(
-        '從 SharedPreferences 讀取的金鑰: ${apiKey != null ? (apiKey.isEmpty ? "空字串" : "長度為 ${apiKey.length} 的金鑰") : "null"}',
-      );
 
       // 顯示金鑰的前10個字符（如果存在）
       if (apiKey != null && apiKey.isNotEmpty) {
-        String prefix = apiKey.length > 10 ? apiKey.substring(0, 10) : apiKey;
-        print('金鑰前綴: $prefix...');
-
         // 檢查金鑰是否以 sk-ant- 開頭
         if (apiKey.startsWith('sk-ant-')) {
-          print('金鑰格式正確，以 sk-ant- 開頭');
-        } else {
-          print('金鑰格式不正確，不是以 sk-ant- 開頭');
-        }
+        } else {}
       }
 
       // 如果 SharedPreferences 中沒有金鑰，嘗試從配置文件讀取
       if (apiKey == null || apiKey.isEmpty) {
-        print('SharedPreferences 中沒有金鑰，嘗試從配置文件讀取');
         try {
           // 讀取配置文件
-          print('嘗試讀取配置文件: assets/config/api_config.json');
           final jsonString = await rootBundle.loadString(
             'assets/config/api_config.json',
           );
-          print('配置文件內容長度: ${jsonString.length}');
 
           // 解析 JSON
           final jsonMap = json.decode(jsonString);
-          print('JSON 解析結果: ${jsonMap != null ? "成功" : "失敗"}');
 
           if (jsonMap != null && jsonMap is Map<String, dynamic>) {
-            print('配置文件欄位: ${jsonMap.keys.join(", ")}');
-
             // 檢查配置文件中是否有 api_key 欄位
             final configApiKey = jsonMap['api_key'] as String?;
-            print(
-              '配置文件中的 api_key: ${configApiKey != null ? (configApiKey.isEmpty ? "空字串" : "長度為 ${configApiKey.length} 的金鑰") : "null"}',
-            );
 
             if (configApiKey != null && configApiKey.isNotEmpty) {
               // 如果配置文件中有有效的金鑰，使用它並保存到 SharedPreferences
-              print('使用配置文件中的金鑰並保存到 SharedPreferences');
               apiKey = configApiKey;
               await prefs.setString('claude_api_key', apiKey);
-              print('金鑰已保存到 SharedPreferences');
-            } else {
-              print('配置文件中沒有有效的金鑰');
-            }
-          } else {
-            print('配置文件不是有效的 JSON 或不是 Map 類型');
-          }
+            } else {}
+          } else {}
         } catch (e) {
           // 忽略配置文件讀取錯誤，繼續使用 SharedPreferences 中的金鑰（如果有的話）
-          print('無法從配置文件讀取 API 金鑰: $e');
         }
-      } else {
-        print('使用 SharedPreferences 中的金鑰');
-      }
-
-      print(
-        '最終使用的金鑰: ${apiKey != null ? (apiKey.isEmpty ? "空字串" : "長度為 ${apiKey.length} 的金鑰") : "null"}',
-      );
-      print('===== API 金鑰載入完成 =====');
+      } else {}
 
       state = AsyncValue.data(apiKey);
     } catch (e) {
-      print('===== API 金鑰載入失敗: $e =====');
       state = AsyncValue.error(
         AppStrings.errorApiKeyLoading + e.toString(),
         StackTrace.current,
@@ -348,13 +252,9 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
   }
 
   Future<void> setApiKey(String apiKey) async {
-    print('===== 開始設置 API 金鑰 =====');
-    print('輸入的金鑰: ${apiKey.isEmpty ? "空字串" : "長度為 ${apiKey.length} 的金鑰"}');
-
     state = const AsyncValue.loading();
     try {
       if (apiKey.trim().isEmpty) {
-        print('金鑰為空，設置失敗');
         state = AsyncValue.error(
           AppStrings.errorApiKeyEmpty,
           StackTrace.current,
@@ -362,31 +262,21 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
         return;
       }
 
-      print('嘗試保存金鑰到 SharedPreferences');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('claude_api_key', apiKey);
 
       // 記錄設置時間
       final now = DateTime.now().millisecondsSinceEpoch;
       await prefs.setInt('claude_api_key_last_modified', now);
-      print(
-        '金鑰已保存到 SharedPreferences，設置時間: ${DateTime.fromMillisecondsSinceEpoch(now)}',
-      );
 
       state = AsyncValue.data(apiKey);
-      print('狀態已更新為新的金鑰');
 
       // refresh API config provider to reflect new key
-      print('重新整理 apiConfigProvider');
       ref.invalidate(apiConfigProvider);
 
       // 重置翻譯結果狀態，清除錯誤訊息
-      print('重置翻譯結果狀態');
       ref.read(translationResultProvider.notifier).reset();
-
-      print('===== API 金鑰設置完成 =====');
     } catch (e) {
-      print('===== API 金鑰設置失敗: $e =====');
       state = AsyncValue.error(
         AppStrings.errorApiKeySaving + e.toString(),
         StackTrace.current,
@@ -395,24 +285,16 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
   }
 
   Future<void> clearApiKey() async {
-    print('===== 開始清除 API 金鑰 =====');
     state = const AsyncValue.loading();
     try {
-      print('嘗試從 SharedPreferences 中移除金鑰');
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('claude_api_key');
-      print('金鑰已從 SharedPreferences 中移除');
 
       state = const AsyncValue.data(null);
-      print('狀態已更新為 null');
 
       // refresh API config provider
-      print('重新整理 apiConfigProvider');
       ref.invalidate(apiConfigProvider);
-
-      print('===== API 金鑰清除完成 =====');
     } catch (e) {
-      print('===== API 金鑰清除失敗: $e =====');
       state = AsyncValue.error(
         AppStrings.errorApiKeyClearing + e.toString(),
         StackTrace.current,
@@ -425,28 +307,22 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
   /// 此方法用於測試目的，可以清除所有存儲的數據，
   /// 包括 API 金鑰，以便測試應用程序在沒有預設金鑰的情況下的行為。
   Future<void> clearAllPreferences() async {
-    print('===== 開始清除所有 SharedPreferences 數據 =====');
     state = const AsyncValue.loading();
     try {
       final prefs = await SharedPreferences.getInstance();
 
       // 獲取所有鍵
-      final allKeys = prefs.getKeys();
-      print('準備清除的鍵: $allKeys');
+      prefs.getKeys();
 
       // 清除所有數據
       await prefs.clear();
-      print('所有 SharedPreferences 數據已清除');
 
       state = const AsyncValue.data(null);
 
       // 重新整理相關提供者
       ref.invalidate(apiConfigProvider);
       ref.read(translationResultProvider.notifier).reset();
-
-      print('===== 所有 SharedPreferences 數據清除完成 =====');
     } catch (e) {
-      print('===== 清除 SharedPreferences 數據失敗: $e =====');
       state = AsyncValue.error(
         '清除 SharedPreferences 數據失敗: $e',
         StackTrace.current,
