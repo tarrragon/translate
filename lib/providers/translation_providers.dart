@@ -27,15 +27,26 @@ class TranslationNotifier extends StateNotifier<AsyncValue<TranslationResult>> {
     state = const AsyncValue.loading();
 
     try {
-      // 先檢查 API 金鑰
-      final apiKeyState = ref.read(apiKeyProvider);
-      if (!apiKeyState.hasValue ||
-          apiKeyState.value == null ||
-          apiKeyState.value!.isEmpty) {
-        state = AsyncValue.data(
-          TranslationResult.withError(AppStrings.errorApiKeyMissing),
-        );
-        return;
+      // 使用 apiKeyStatusProvider 來判斷 API 金鑰狀態
+      final apiKeyStatus = ref.read(apiKeyStatusProvider);
+
+      // 根據 API 金鑰狀態進行不同處理
+      switch (apiKeyStatus) {
+        case ApiKeyStatus.loading:
+          state = AsyncValue.data(
+            TranslationResult.withError('API 金鑰載入中，請稍後再試'),
+          );
+          return;
+
+        case ApiKeyStatus.invalid:
+          state = AsyncValue.data(
+            TranslationResult.withError(AppStrings.errorApiKeyMissing),
+          );
+          return;
+
+        case ApiKeyStatus.valid:
+          // 繼續執行翻譯操作
+          break;
       }
 
       final apiService = ref.read(claudeApiServiceProvider);

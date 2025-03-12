@@ -1,6 +1,7 @@
 // lib/providers/config_providers.dart
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,6 +32,33 @@ import '../providers/translation_providers.dart';
 /// - 在初始化流程中檢查應用程式設定的完整性
 final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
   try {
+    // 等待 API 金鑰載入完成
+    final apiKeyStatus = ref.read(apiKeyStatusProvider);
+
+    // 如果 API 金鑰仍在載入中，等待它完成
+    if (apiKeyStatus == ApiKeyStatus.loading) {
+      // 創建一個 Completer 來等待 API 金鑰載入完成
+      final completer = Completer<void>();
+
+      // 創建一個定時器，每 100ms 檢查一次 API 金鑰狀態
+      Timer.periodic(const Duration(milliseconds: 100), (timer) {
+        final currentStatus = ref.read(apiKeyStatusProvider);
+        if (currentStatus != ApiKeyStatus.loading) {
+          timer.cancel();
+          completer.complete();
+        }
+      });
+
+      // 等待 API 金鑰載入完成，但最多等待 5 秒
+      await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          // 如果超時，也視為完成
+          return;
+        },
+      );
+    }
+
     // read config file
     final jsonString = await rootBundle.loadString(
       'assets/config/api_config.json',
@@ -51,8 +79,10 @@ final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
     }
 
     // check API key
-    final apiKeyState = ref.watch(apiKeyProvider);
-    if (apiKeyState.value != null && apiKeyState.value!.isNotEmpty) {
+    final apiKeyState = ref.read(apiKeyProvider);
+    if (apiKeyState.hasValue &&
+        apiKeyState.value != null &&
+        apiKeyState.value!.isNotEmpty) {
       return config.copyWith(apiKey: apiKeyState.value);
     }
 
@@ -151,8 +181,35 @@ class ApiKeyNotifier extends StateNotifier<AsyncValue<String?>> {
 
   Future<void> _loadApiKey() async {
     try {
+      // 先嘗試從 SharedPreferences 讀取金鑰
       final prefs = await SharedPreferences.getInstance();
-      final apiKey = prefs.getString('claude_api_key');
+      String? apiKey = prefs.getString('claude_api_key');
+
+      // 如果 SharedPreferences 中沒有金鑰，嘗試從配置文件讀取
+      if (apiKey == null || apiKey.isEmpty) {
+        try {
+          // 讀取配置文件
+          final jsonString = await rootBundle.loadString(
+            'assets/config/api_config.json',
+          );
+
+          // 解析 JSON
+          final jsonMap = json.decode(jsonString);
+          if (jsonMap != null && jsonMap is Map<String, dynamic>) {
+            // 檢查配置文件中是否有 api_key 欄位
+            final configApiKey = jsonMap['api_key'] as String?;
+            if (configApiKey != null && configApiKey.isNotEmpty) {
+              // 如果配置文件中有有效的金鑰，使用它並保存到 SharedPreferences
+              apiKey = configApiKey;
+              await prefs.setString('claude_api_key', apiKey);
+            }
+          }
+        } catch (e) {
+          // 忽略配置文件讀取錯誤，繼續使用 SharedPreferences 中的金鑰（如果有的話）
+          print('無法從配置文件讀取 API 金鑰: $e');
+        }
+      }
+
       state = AsyncValue.data(apiKey);
     } catch (e) {
       state = AsyncValue.error(
@@ -229,12 +286,17 @@ final appInitializationProvider = FutureProvider<bool>((ref) async {
     await ref.read(apiConfigProvider.future);
     await ref.read(promptConfigProvider.future);
 
-    // 檢查 API 金鑰
-    final apiKeyState = ref.read(apiKeyProvider);
-    if (apiKeyState.value == null || apiKeyState.value!.isEmpty) {
+    // 獲取最新的 API 金鑰狀態
+    final apiKeyStatus = ref.read(apiKeyStatusProvider);
+
+    // 檢查 API 金鑰是否有效
+    if (apiKeyStatus == ApiKeyStatus.invalid) {
       ref
           .read(translationResultProvider.notifier)
           .setError(AppStrings.errorApiKeyMissing);
+    } else if (apiKeyStatus == ApiKeyStatus.valid) {
+      // 如果金鑰有效，確保重置任何可能的錯誤訊息
+      ref.read(translationResultProvider.notifier).reset();
     }
 
     return true;
@@ -245,4 +307,40 @@ final appInitializationProvider = FutureProvider<bool>((ref) async {
         .setError('${AppStrings.errorConfigLoading}$e');
     return false;
   }
+});
+
+/// API 金鑰狀態提供者
+///
+/// 負責項目：
+/// - 提供 API 金鑰的狀態（有效/無效/載入中）
+/// - 集中管理 API 金鑰狀態的判斷邏輯
+///
+/// 設計理念：
+/// - 遵循 Tell, Don't Ask 原則，將狀態判斷邏輯集中在狀態管理層
+/// - 減少 UI 元件中的判斷邏輯，使程式碼更加清晰
+/// - 提供統一的 API 金鑰狀態介面，避免重複邏輯
+///
+/// 使用情境：
+/// - UI 元件需要根據 API 金鑰狀態顯示不同內容
+/// - 業務邏輯需要判斷 API 金鑰是否有效
+enum ApiKeyStatus {
+  loading, // API 金鑰載入中
+  valid, // API 金鑰有效
+  invalid, // API 金鑰無效或未設定
+}
+
+final apiKeyStatusProvider = Provider<ApiKeyStatus>((ref) {
+  final apiKeyState = ref.watch(apiKeyProvider);
+
+  if (apiKeyState.isLoading) {
+    return ApiKeyStatus.loading;
+  }
+
+  if (apiKeyState.hasValue &&
+      apiKeyState.value != null &&
+      apiKeyState.value!.isNotEmpty) {
+    return ApiKeyStatus.valid;
+  }
+
+  return ApiKeyStatus.invalid;
 });

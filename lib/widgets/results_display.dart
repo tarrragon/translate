@@ -10,14 +10,9 @@ class ResultsDisplay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final apiKeyState = ref.watch(apiKeyProvider);
+    final apiKeyStatus = ref.watch(apiKeyStatusProvider);
     final translationState = ref.watch(translationResultProvider);
     final inputText = ref.watch(inputTextProvider);
-
-    final hasApiKey =
-        apiKeyState.hasValue &&
-        apiKeyState.value != null &&
-        apiKeyState.value!.isNotEmpty;
 
     return Expanded(
       child: translationState.when(
@@ -30,10 +25,14 @@ class ResultsDisplay extends ConsumerWidget {
               ),
             ),
         data: (result) {
+          if (apiKeyStatus == ApiKeyStatus.loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           if (result.isEmpty) {
             return Center(
               child: Text(
-                hasApiKey
+                apiKeyStatus == ApiKeyStatus.valid
                     ? AppStrings.pleaseInputText
                     : AppStrings.pleaseSetApiKey,
               ),

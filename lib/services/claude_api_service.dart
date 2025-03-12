@@ -22,14 +22,14 @@ class ClaudeApiService {
     AsyncValue<ApiConfig> apiConfigAsync,
     AsyncValue<PromptConfig> promptConfigAsync,
   ) {
+    // 檢查配置是否已載入
     if (!apiConfigAsync.hasValue || !promptConfigAsync.hasValue) {
       return false;
     }
 
-    final apiConfig = apiConfigAsync.valueOrNull;
-    if (apiConfig == null ||
-        apiConfig.apiKey == null ||
-        apiConfig.apiKey!.isEmpty) {
+    // 檢查 API 金鑰狀態
+    final apiKeyStatus = ref.read(apiKeyStatusProvider);
+    if (apiKeyStatus != ApiKeyStatus.valid) {
       return false;
     }
 
@@ -40,6 +40,19 @@ class ClaudeApiService {
     // 獲取配置
     final apiConfigAsync = ref.read(apiConfigProvider);
     final promptConfigAsync = ref.read(promptConfigProvider);
+
+    // 檢查 API 金鑰狀態
+    final apiKeyStatus = ref.read(apiKeyStatusProvider);
+
+    // 如果 API 金鑰仍在載入中，返回錯誤
+    if (apiKeyStatus == ApiKeyStatus.loading) {
+      return TranslationResult.withError('API 金鑰載入中，請稍後再試');
+    }
+
+    // 如果 API 金鑰無效，返回錯誤
+    if (apiKeyStatus == ApiKeyStatus.invalid) {
+      return TranslationResult.withError(AppStrings.errorApiKeyMissing);
+    }
 
     // 檢查初始化狀態
     if (!apiConfigAsync.hasValue || !promptConfigAsync.hasValue) {

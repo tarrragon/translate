@@ -11,20 +11,29 @@ class ActionButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final apiKeyState = ref.watch(apiKeyProvider);
-    final hasApiKey =
-        apiKeyState.hasValue &&
-        apiKeyState.value != null &&
-        apiKeyState.value!.isNotEmpty;
+    // 使用 apiKeyStatusProvider 來判斷 API 金鑰狀態
+    final apiKeyStatus = ref.watch(apiKeyStatusProvider);
 
-    return ElevatedButton(
-      onPressed:
-          !hasApiKey
-              ? onApiKeyRequest
-              : () => ref.read(translationResultProvider.notifier).translate(),
-      child: Text(
-        !hasApiKey ? AppStrings.setApiKeyButton : AppStrings.generateButton,
-      ),
-    );
+    // 根據 API 金鑰狀態顯示不同的按鈕
+    switch (apiKeyStatus) {
+      case ApiKeyStatus.loading:
+        return ElevatedButton(
+          onPressed: null, // 禁用按鈕
+          child: const Text('載入中...'),
+        );
+
+      case ApiKeyStatus.valid:
+        return ElevatedButton(
+          onPressed:
+              () => ref.read(translationResultProvider.notifier).translate(),
+          child: Text(AppStrings.generateButton),
+        );
+
+      case ApiKeyStatus.invalid:
+        return ElevatedButton(
+          onPressed: onApiKeyRequest,
+          child: Text(AppStrings.setApiKeyButton),
+        );
+    }
   }
 }
