@@ -38,17 +38,17 @@ class TranslationCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            const Center(
-              child: Text(
-                AppStrings.cardTitle,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            const Divider(thickness: 1, color: Colors.grey, height: 32),
+            // const Center(
+            //   child: Text(
+            //     AppStrings.cardTitle,
+            //     style: TextStyle(
+            //       fontSize: 22,
+            //       fontWeight: FontWeight.bold,
+            //       color: Colors.black87,
+            //     ),
+            //   ),
+            // ),
+            // const Divider(thickness: 1, color: Colors.grey, height: 32),
 
             // Input section
             // Container(
