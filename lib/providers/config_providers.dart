@@ -30,33 +30,15 @@ import '../providers/translation_providers.dart';
 /// 使用情境：
 /// - 在 API 服務中取得請求設定
 /// - 在初始化流程中檢查應用程式設定的完整性
-final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
+final apiConfigProvider = FutureProvider<ApiConfig>((configRef) async {
   try {
     // 等待 API 金鑰載入完成
-    final apiKeyStatus = ref.read(apiKeyStatusProvider);
+    final apiKeyStatus = configRef.read(apiKeyStatusProvider);
 
     // 如果 API 金鑰仍在載入中，等待它完成
-    if (apiKeyStatus == ApiKeyStatus.loading) {
-      // 創建一個 Completer 來等待 API 金鑰載入完成
-      final completer = Completer<void>();
-
-      // 創建一個定時器，每 100ms 檢查一次 API 金鑰狀態
-      Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        final currentStatus = ref.read(apiKeyStatusProvider);
-        if (currentStatus != ApiKeyStatus.loading) {
-          timer.cancel();
-          completer.complete();
-        }
-      });
-
-      // 等待 API 金鑰載入完成，但最多等待 5 秒
-      await completer.future.timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          // 如果超時，也視為完成
-          return;
-        },
-      );
+    bool isLoading = apiKeyStatus == ApiKeyStatus.loading;
+    if (isLoading) {
+      await waitForApiKeyStateChange(configRef);
     }
 
     // read config file
@@ -79,7 +61,7 @@ final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
     }
 
     // check API key
-    final apiKeyState = ref.read(apiKeyProvider);
+    final apiKeyState = configRef.read(apiKeyProvider);
     if (apiKeyState.hasValue &&
         apiKeyState.value != null &&
         apiKeyState.value!.isNotEmpty) {
@@ -96,6 +78,43 @@ final apiConfigProvider = FutureProvider<ApiConfig>((ref) async {
     throw Exception('${AppStrings.errorConfigLoading}$e');
   }
 });
+
+/// 等待 API 金鑰狀態變更
+///
+/// 負責項目：
+/// - 定期檢查 API 金鑰的載入狀態
+/// - 當狀態不再是 loading 時完成等待
+/// - 處理超時情況
+///
+/// 設計理念：
+/// - 封裝等待邏輯，提供統一的介面
+/// - 自動處理超時情況，避免永久等待
+/// - 簡化使用方的程式碼
+///
+/// 使用情境：
+/// - 需要等待 API 金鑰載入完成時
+/// - 需要確保 API 金鑰狀態已就緒時
+Future<void> waitForApiKeyStateChange(Ref ref) async {
+  final completer = Completer<void>();
+
+  Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    final currentStatus = ref.read(apiKeyStatusProvider);
+    bool isReady = currentStatus != ApiKeyStatus.loading;
+    if (isReady) {
+      timer.cancel();
+      completer.complete();
+    }
+  });
+
+  // 等待 API 金鑰載入完成，但最多等待 5 秒
+  await completer.future.timeout(
+    const Duration(seconds: 5),
+    onTimeout: () {
+      // 如果超時，也視為完成
+      return;
+    },
+  );
+}
 
 /// 提示詞設定提供者
 ///
